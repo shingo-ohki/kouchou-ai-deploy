@@ -1,3 +1,10 @@
+実現可能性の確認のためのやっつけコード
+
+処理は以下がほぼ全て（他は試行錯誤の過程のゴミ）
+
+https://github.com/shingo-ohki/kouchou-ai-deploy/blob/feature/prototype/DeployWithMakefile/__init__.py
+
+
 # 広聴AI簡単デプロイサービス
 
 このプロジェクトは、非エンジニアが広聴AIをAzure環境に簡単にデプロイできるようにするためのサービスです。
