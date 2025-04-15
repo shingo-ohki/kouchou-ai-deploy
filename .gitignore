@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Azure Functions
+local.settings.json
+.python_packages/
+.env
+.venv
+.vscode/
+azuritie_data/
+__azurite*
+__blobstorage__
+__queuestorage__
+__tablestorage__
+
+# Project specific
+/workspace/
+/temp/
+*.log
+.env.azure
+.env.local
+.DS_Store
+
+# Development
+.idea/
+.vs/
+node_modules/
