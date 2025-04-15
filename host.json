@@ -1,0 +1,69 @@
+{
+    "version": "2.0",
+    "logging": {
+        "applicationInsights": {
+            "samplingSettings": {
+                "isEnabled": true,
+                "excludedTypes": "Request"
+            }
+        },
+        "logLevel": {
+            "default": "Information",
+            "DurableTask": "Information",
+            "Function": "Information",
+            "Host.Triggers.DurableTask": "Information"
+        },
+        "console": {
+            "isEnabled": true
+        }
+    },
+    "functionTimeout": "02:00:00",
+    "extensionBundle": {
+        "id": "Microsoft.Azure.Functions.ExtensionBundle",
+        "version": "[3.3.0, 4.0.0)"
+    },
+    "extensions": {
+        "durableTask": {
+            "hubName": "TaskHub",
+            "storageProvider": {
+                "connectionStringName": "AzureWebJobsStorage",
+                "partitionCount": 4,
+                "controlQueueVisibilityTimeout": "00:05:00",
+                "workItemQueueVisibilityTimeout": "00:05:00",
+                "maxQueuePollingInterval": "00:00:30"
+            },
+            "tracing": {
+                "traceInputsAndOutputs": true,
+                "traceReplayEvents": false
+            },
+            "maxConcurrentActivityFunctions": 10,
+            "maxConcurrentOrchestratorFunctions": 5,
+            "notifications": {
+                "webhookUrls": [
+                    {
+                        "cors": [
+                            "http://127.0.0.1:10000"
+                        ]
+                    }
+                ]
+            }
+        },
+        "http": {
+            "routePrefix": "api",
+            "cors": {
+                "allowedOrigins": [
+                    "http://127.0.0.1:10000",
+                    "http://localhost:10000",
+                    "http://127.0.0.1:8080",
+                    "http://localhost:8080",
+                    "*"
+                ],
+                "allowedMethods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allowedHeaders": ["Origin", "Content-Type", "Accept", "Authorization"],
+                "exposedHeaders": ["*"],
+                "maxAge": 86400,
+                "allowCredentials": true
+            }
+        }
+    }
+}

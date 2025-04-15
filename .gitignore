@@ -26,7 +26,7 @@ local.settings.json
 .env
 .venv
 .vscode/
-azuritie_data/
+azurite_data/
 __azurite*
 __blobstorage__
 __queuestorage__

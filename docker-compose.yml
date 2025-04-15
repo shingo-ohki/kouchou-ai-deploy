@@ -1,0 +1,78 @@
+services:
+  azurite:
+    build:
+      context: .
+      dockerfile: azurite.Dockerfile
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    volumes:
+      - ./azurite_data:/data
+    networks:
+      default:
+        aliases:
+          - azurite
+    healthcheck:
+      # ヘルスチェックを緩和：起動に十分な時間を与え、シンプルなチェックにする
+      test: ["CMD", "nc", "-z", "localhost", "10000"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  functions:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      # 明示的な接続文字列でAzuriteに接続
+      - AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;
+      - DEPLOYMENT_WORKSPACE=/tmp/kouchou-ai-deployments
+      - GITHUB_REPO=https://github.com/digitaldemocracy2030/kouchou-ai.git
+      # タイムアウト設定
+      - AzureFunctionsJobHost__functionTimeout=00:10:00
+      # Azuriteへの接続設定
+      - AzureFunctionsJobHost__extensions__durableTask__hubName=TaskHub
+      # 通常の設定
+      - FUNCTIONS_WORKER_RUNTIME=python
+      - AZURE_FUNCTIONS_ENVIRONMENT=Development
+      # Durable Functions用のCORS設定
+      - AzureWebJobsFeatureFlags=EnableCorsConfiguration
+      # 認証レベルを明示的に設定（これが重要）
+      - AzureFunctionsJobHost__extensions__durableTask__notifications__webhookAuthorizationLevel=Anonymous
+      # 直接認証をバイパスする設定（開発環境のみ）
+      - AzureFunctionsJobHost__extensions__http__dynamicThrottlesEnabled=false
+      - AzureFunctionsJobHost__extensions__durableTask__hubAuthorizationLevel=Anonymous
+      # Durable Functions用のホスト名設定
+      - WEBSITE_HOSTNAME=localhost:8080
+      # Durable Functions認証関連設定
+      - AzureFunctionsJobHost__extensions__durableTask__notifications__webhookAuthorizationLevel=Anonymous
+      # CORS設定を追加
+      - HOST__CORS=http://127.0.0.1:10000
+      - HOST__CORSCREDENTIALS=true
+      # Python 関連の設定
+      - PYTHONPATH=/home/site/wwwroot
+      - FUNCTIONS_WORKER_PROCESS_COUNT=1
+    depends_on:
+      azurite:
+        condition: service_healthy
+    volumes:
+      - ./:/home/site/wwwroot
+    restart: on-failure:5
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+    networks:
+      default:
+        aliases:
+          - functions
+
+networks:
+  default:
+    driver: bridge

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>広聴AI Azure デプロイツール</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #0078d4;
+            border-bottom: 2px solid #0078d4;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #005a9e;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .cleanup-button {
+            background-color: #d83b01; /* 警告色の赤 */
+            margin-top: 20px;
+        }
+        .cleanup-button:hover {
+            background-color: #a42e01;
+        }
+        .status-container {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            display: none;
+        }
+        .error {
+            color: #d83b01;
+            font-weight: bold;
+        }
+        .progress-container {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 20px;
+            background-color: #0078d4;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .button-container {
+            display: flex;
+            margin-top: 20px;
+        }
+        .test-button {
+            background-color: #107c41; /* 緑色 */
+        }
+        .test-button:hover {
+            background-color: #0a5a2d;
+        }
+        .direct-api-container {
+            margin-top: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f5f5f5;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            font-family: monospace;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <h1>広聴AI Azure デプロイツール</h1>
+    
+    <div>
+        <p>
+            このフォームを使用して、広聴AIをAzure環境にデプロイできます。
+            必要な認証情報とパラメータを入力してください。
+        </p>
+    </div>
+
+    <form id="deployForm">
+        <h2>Azure認証情報</h2>
+        <div class="form-group">
+            <label for="azure_subscription_id">Azure サブスクリプション ID</label>
+            <input type="text" id="azure_subscription_id" name="azure_subscription_id" required>
+        </div>
+        <div class="form-group">
+            <label for="azure_tenant_id">Azure テナント ID</label>
+            <input type="text" id="azure_tenant_id" name="azure_tenant_id" required>
+        </div>
+        <div class="form-group">
+            <label for="azure_client_id">Azure クライアント ID</label>
+            <input type="text" id="azure_client_id" name="azure_client_id" required>
+        </div>
+        <div class="form-group">
+            <label for="azure_client_secret">Azure クライアントシークレット</label>
+            <input type="password" id="azure_client_secret" name="azure_client_secret" required>
+        </div>
+
+        <h2>OpenAI API設定</h2>
+        <div class="form-group">
+            <label for="openai_api_key">OpenAI API キー</label>
+            <input type="password" id="openai_api_key" name="openai_api_key" required>
+        </div>
+
+        <h2>基本認証設定</h2>
+        <div class="form-group">
+            <label for="basic_auth_username">ユーザー名</label>
+            <input type="text" id="basic_auth_username" name="basic_auth_username" required>
+        </div>
+        <div class="form-group">
+            <label for="basic_auth_password">パスワード</label>
+            <input type="password" id="basic_auth_password" name="basic_auth_password" required>
+        </div>
+
+        <h2>デプロイ設定（オプション）</h2>
+        <div class="form-group">
+            <label for="resource_group">リソースグループ名（空欄の場合は自動生成）</label>
+            <input type="text" id="resource_group" name="resource_group">
+        </div>
+        <div class="form-group">
+            <label for="region">リージョン</label>
+            <input type="text" id="region" name="region" value="japaneast">
+        </div>
+        <div class="form-group">
+            <label for="storage_account">ストレージアカウント名（空欄の場合は自動生成）</label>
+            <input type="text" id="storage_account" name="storage_account">
+        </div>
+        <div class="form-group">
+            <label for="container_name">コンテナ名</label>
+            <input type="text" id="container_name" name="container_name" value="kouchou-ai-container">
+        </div>
+
+        <div class="button-container">
+            <button type="submit" id="deploy-button">デプロイを開始</button>
+            <button type="button" id="test-data-button" class="test-button">テストデータを使用</button>
+            <button type="button" id="cleanup-button" class="cleanup-button">環境を削除</button>
+        </div>
+    </form>
+
+    <div id="status-container" class="status-container">
+        <h2>デプロイステータス</h2>
+        <div id="error-message" class="error"></div>
+        <div id="status-message"></div>
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div id="detail-message"></div>
+    </div>
+
+    <div class="direct-api-container">
+        <h2>API直接呼び出し（開発用）</h2>
+        <p>以下のJSONデータを直接APIにPOSTできます。</p>
+        <textarea id="api-test-data"></textarea>
+        <button type="button" id="direct-api-button">APIに直接POST</button>
+    </div>
+
+    <script>
+        const deployForm = document.getElementById('deployForm');
+        const deployButton = document.getElementById('deploy-button');
+        const testDataButton = document.getElementById('test-data-button');
+        const directApiButton = document.getElementById('direct-api-button');
+        const apiTestData = document.getElementById('api-test-data');
+        const statusContainer = document.getElementById('status-container');
+        const errorMessage = document.getElementById('error-message');
+        const statusMessage = document.getElementById('status-message');
+        const progressBar = document.getElementById('progress-bar');
+        const detailMessage = document.getElementById('detail-message');
+
+        // テストデータを設定
+        const testData = {
+            "azure_subscription_id": "xxx",
+            "azure_tenant_id": "xxx",
+            "azure_client_id": "xxx",
+            "azure_client_secret": "xxx",
+            "openai_api_key": "xxx",
+            "basic_auth_username": "admin",
+            "basic_auth_password": "xxx",
+            "region": "japaneast",
+            "container_name": "kouchou-ai-container"
+        };
+
+        // テストデータをテキストエリアに表示
+        apiTestData.value = JSON.stringify(testData, null, 2);
+
+        // Azure FunctionsのAPIエンドポイントを指定
+        // オリジンを一致させるため、現在のホスト名に基づいてエンドポイントを設定
+        let deployApiUrl;
+        if (window.location.hostname === '127.0.0.1') {
+            // 127.0.0.1からアクセスしている場合は、バックエンドも127.0.0.1を使用
+            deployApiUrl = 'http://127.0.0.1:8080/api/deploy';
+        } else if (window.location.hostname === 'localhost') {
+            // localhostからアクセスしている場合は、バックエンドもlocalhostを使用
+            deployApiUrl = 'http://localhost:8080/api/deploy';
+        } else {
+            // 本番環境では相対パスを使用
+            deployApiUrl = '/api/deploy';
+        }
+        console.log(`使用するAPIエンドポイント: ${deployApiUrl}`);
+        
+        let statusCheckUrl = '';
+        let statusCheckInterval = null;
+
+        // テストデータを入力フォームに設定する関数
+        function fillFormWithTestData() {
+            document.getElementById('azure_subscription_id').value = testData.azure_subscription_id;
+            document.getElementById('azure_tenant_id').value = testData.azure_tenant_id;
+            document.getElementById('azure_client_id').value = testData.azure_client_id;
+            document.getElementById('azure_client_secret').value = testData.azure_client_secret;
+            document.getElementById('openai_api_key').value = testData.openai_api_key;
+            document.getElementById('basic_auth_username').value = testData.basic_auth_username;
+            document.getElementById('basic_auth_password').value = testData.basic_auth_password;
+            document.getElementById('region').value = testData.region;
+            document.getElementById('container_name').value = testData.container_name;
+            
+            // リソースグループやストレージアカウント名は自動生成するため空にしておく
+            document.getElementById('resource_group').value = '';
+            document.getElementById('storage_account').value = '';
+        }
+
+        // テストデータボタンのイベントリスナー
+        testDataButton.addEventListener('click', function() {
+            fillFormWithTestData();
+        });
+
+        // APIに直接POSTするボタンのイベントリスナー
+        directApiButton.addEventListener('click', async function() {
+            try {
+                // テキストエリアからJSONデータを取得
+                const jsonData = JSON.parse(apiTestData.value);
+                
+                // ボタンを無効化
+                directApiButton.disabled = true;
+                directApiButton.textContent = 'API呼び出し中...';
+                
+                // ステータス表示をリセットして表示
+                errorMessage.textContent = '';
+                statusMessage.textContent = 'APIを直接呼び出しています...';
+                progressBar.style.width = '0%';
+                detailMessage.textContent = '';
+                statusContainer.style.display = 'block';
+                
+                // APIを呼び出す
+                startDeployment(jsonData);
+            } catch (error) {
+                console.error('JSONパースエラー:', error);
+                errorMessage.textContent = `JSONデータのパースに失敗しました: ${error.message}`;
+                statusContainer.style.display = 'block';
+                directApiButton.disabled = false;
+                directApiButton.textContent = 'APIに直接POST';
+            }
+        });
+
+        // フォーム送信時のイベントリスナー
+        deployForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // フォームからデータを取得
+            const formData = new FormData(deployForm);
+            const deployData = {};
+            for (let [key, value] of formData.entries()) {
+                // 空でない値のみ追加
+                if (value) {
+                    deployData[key] = value;
+                }
+            }
+
+            // ボタンを無効化
+            deployButton.disabled = true;
+            deployButton.textContent = 'デプロイ中...';
+            
+            // ステータス表示をリセット
+            errorMessage.textContent = '';
+            statusMessage.textContent = 'デプロイを開始しています...';
+            progressBar.style.width = '0%';
+            detailMessage.textContent = '';
+            statusContainer.style.display = 'block';
+
+            // デプロイ開始
+            startDeployment(deployData);
+        });
+
+        // デプロイを開始する共通関数
+        async function startDeployment(deployData) {
+            try {
+                // デプロイAPIを呼び出し
+                const response = await fetch(deployApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(deployData)
+                });
+                    
+                if (!response.ok) {
+                    throw new Error(`デプロイの開始に失敗しました: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('デプロイレスポンス:', data);
+                
+                statusMessage.textContent = `デプロイが開始されました。ID: ${data.id}`;
+                
+                // ステータスチェックURLを設定
+                statusCheckUrl = data.status_query_uri;
+                console.log('設定されたステータスチェックURL:', statusCheckUrl);
+
+                // オリジナルのURLは使わない（デバッグ情報として表示）
+                if (data.original_uri) {
+                    console.log('オリジナルのDurable Task URL (使用しません):', data.original_uri);
+                }
+
+                // ステータスチェックを開始
+                if (statusCheckInterval) {
+                    clearInterval(statusCheckInterval);
+                }
+                statusCheckInterval = setInterval(checkDeploymentStatus, 5000);
+            } catch (error) {
+                console.error('エラー:', error);
+                errorMessage.textContent = error.message;
+                deployButton.disabled = false;
+                deployButton.textContent = 'デプロイを開始';
+                directApiButton.disabled = false;
+                directApiButton.textContent = 'APIに直接POST';
+            }
+        }
+
+        async function checkDeploymentStatus() {
+            if (!statusCheckUrl) return;
+
+            try {
+                // ステータスチェックURLを直接使用
+                console.log('使用するステータスURL:', statusCheckUrl);
+                
+                // カスタムステータスAPIを呼び出し
+                const response = await fetch(statusCheckUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`ステータスの確認に失敗しました: ${response.statusText}`);
+                }
+
+                const status = await response.json();
+                console.log('ステータスレスポンス:', status);
+
+                // ステータスに応じた表示
+                if (status.runtimeStatus === 'Completed') {
+                    // オーケストレーション結果から step_status を探す
+                    // この情報はDeployOrchestratorから返される場合がある
+                    const result = status.output?.result || {};
+                    const stepStatus = result.step_status;
+                    
+                    if (stepStatus) {
+                        // DeployOrchestrator結果の step_status を使用（より詳細な情報）
+                        statusMessage.textContent = `デプロイ${stepStatus.step === '完了' ? '完了' : '中'}: ${stepStatus.step}`;
+                        progressBar.style.width = `${stepStatus.progress}%`;
+                        detailMessage.textContent = stepStatus.message || '';
+                        
+                        // エラーメッセージがあれば表示
+                        if (stepStatus.message && stepStatus.message.includes('問題')) {
+                            errorMessage.textContent = `警告: ${stepStatus.message}`;
+                        }
+                    } else {
+                        // 従来の customStatus を使用
+                        statusMessage.textContent = 'デプロイが完了しました！';
+                        progressBar.style.width = '100%';
+                        detailMessage.textContent = status.customStatus?.message || 'デプロイが正常に完了しました。';
+                    }
+                    
+                    clearInterval(statusCheckInterval);
+                    deployButton.disabled = false;
+                    deployButton.textContent = 'デプロイを開始';
+                    directApiButton.disabled = false;
+                    directApiButton.textContent = 'APIに直接POST';
+                } else if (status.runtimeStatus === 'Failed') {
+                    statusMessage.textContent = 'デプロイが失敗しました';
+                    errorMessage.textContent = status.customStatus?.message || '不明なエラーが発生しました';
+                    detailMessage.textContent = ''; // 失敗時は詳細メッセージをクリアして混乱を避ける
+                    clearInterval(statusCheckInterval);
+                    deployButton.disabled = false;
+                    deployButton.textContent = 'デプロイを開始';
+                    directApiButton.disabled = false;
+                    directApiButton.textContent = 'APIに直接POST';
+                } else {
+                    // 進行中
+                    // 先に customStatus.step_status をチェックする（新形式）
+                    const stepStatus = status.customStatus?.step_status;
+                    if (stepStatus) {
+                        statusMessage.textContent = `デプロイ中: ${stepStatus.step || 'ステップ情報なし'}`;
+                        if (stepStatus.progress) {
+                            progressBar.style.width = `${stepStatus.progress}%`;
+                        }
+                        detailMessage.textContent = stepStatus.message || '';
+                    } else {
+                        // 旧形式の customStatus
+                        const stepMessage = status.customStatus?.step || 'ステップ情報なし';
+                        statusMessage.textContent = `デプロイ中: ${stepMessage}`;
+                        if (status.customStatus?.progress) {
+                            progressBar.style.width = `${status.customStatus.progress}%`;
+                        }
+                        // 詳細メッセージを更新（存在する場合のみ）
+                        if (status.customStatus?.message) {
+                            detailMessage.textContent = status.customStatus.message;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('ステータスチェックエラー:', error);
+                // エラーですぐに中断せず、次の試行を待つ
+                detailMessage.textContent = `ステータス確認中にエラーが発生しました: ${error.message}`;
+                
+                // エラーが続く場合はモック表示を使用
+                if (!window.useMockProgress) {
+                    window.useMockProgress = true;
+                    window.mockProgressValue = 0;
+                    console.log('モック進捗表示に切り替えます');
+                }
+                
+                if (window.useMockProgress) {
+                    updateMockProgress();
+                }
+            }
+        }
+        
+        function updateMockProgress() {
+            if (!window.mockProgressValue) window.mockProgressValue = 0;
+            window.mockProgressValue += 5;
+            
+            const steps = [
+                'リソースグループを作成しています',
+                'ストレージアカウントを作成しています',
+                'Function Appを作成しています',
+                'アプリケーションをデプロイしています',
+                'デプロイが完了しました'
+            ];
+            
+            const progress = window.mockProgressValue;
+            const stepIndex = Math.min(Math.floor(progress / 20), steps.length - 1);
+            
+            statusMessage.textContent = `デプロイ中: ${steps[stepIndex]} (シミュレーション)`;
+            progressBar.style.width = `${progress}%`;
+            detailMessage.textContent = `進捗: ${progress}% (APIに接続できないため、進捗はシミュレーションされています)`;
+            
+            if (progress >= 100) {
+                statusMessage.textContent = 'デプロイが完了しました！ (シミュレーション)';
+                clearInterval(statusCheckInterval);
+                deployButton.disabled = false;
+                deployButton.textContent = 'デプロイを開始';
+                directApiButton.disabled = false;
+                directApiButton.textContent = 'APIに直接POST';
+                window.useMockProgress = false;
+            }
+        }
+    </script>
+
+    <script>
+        // 環境削除機能の実装
+        const cleanupButton = document.getElementById('cleanup-button');
+        
+        // Cleanup APIのURLを設定
+        let cleanupApiUrl;
+        if (window.location.hostname === '127.0.0.1') {
+            cleanupApiUrl = 'http://127.0.0.1:8080/api/AzureCleanupAPI';
+        } else if (window.location.hostname === 'localhost') {
+            cleanupApiUrl = 'http://localhost:8080/api/AzureCleanupAPI';
+        } else {
+            cleanupApiUrl = '/api/AzureCleanupAPI';
+        }
+        
+        // 環境削除ボタンのイベントリスナー
+        cleanupButton.addEventListener('click', async function() {
+            // 確認ダイアログを表示
+            const confirmed = confirm('警告: この操作はすべてのAzureリソースを削除します。この操作は元に戻せません。続行しますか？');
+            if (!confirmed) {
+                return; // キャンセルされた場合は何もしない
+            }
+
+            try {
+                // フォームからデータを取得
+                const formData = new FormData(deployForm);
+                const cleanupData = {
+                    azure_subscription_id: formData.get('azure_subscription_id'),
+                    azure_tenant_id: formData.get('azure_tenant_id'),
+                    azure_client_id: formData.get('azure_client_id'),
+                    azure_client_secret: formData.get('azure_client_secret'),
+                    resource_group: formData.get('resource_group')
+                };
+                
+                // リソースグループが入力されているか確認
+                if (!cleanupData.resource_group) {
+                    alert('リソースグループ名を入力してください。');
+                    document.getElementById('resource_group').focus();
+                    return;
+                }
+                
+                // 必須フィールドがすべて入力されているか確認
+                for (const [key, value] of Object.entries(cleanupData)) {
+                    if (!value) {
+                        alert(`${key} を入力してください。`);
+                        return;
+                    }
+                }
+                
+                // ボタンを無効化
+                cleanupButton.disabled = true;
+                cleanupButton.textContent = 'リソース削除中...';
+                
+                // ステータス表示をリセット
+                errorMessage.textContent = '';
+                statusMessage.textContent = 'Azure環境の削除を開始しています...';
+                progressBar.style.width = '0%';
+                detailMessage.textContent = '';
+                statusContainer.style.display = 'block';
+                
+                // AzureCleanupAPIを呼び出し
+                const response = await fetch(cleanupApiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(cleanupData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`環境の削除に失敗しました: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('削除レスポンス:', data);
+                
+                // 完了表示
+                statusMessage.textContent = '環境の削除が完了しました！';
+                progressBar.style.width = '100%';
+                detailMessage.textContent = data.message || 'リソースグループの削除が完了しました。';
+                
+                // ボタンを元に戻す
+                cleanupButton.disabled = false;
+                cleanupButton.textContent = '環境を削除';
+                
+            } catch (error) {
+                console.error('削除エラー:', error);
+                errorMessage.textContent = error.message;
+                statusMessage.textContent = '環境の削除中にエラーが発生しました';
+                
+                // ボタンを元に戻す
+                cleanupButton.disabled = false;
+                cleanupButton.textContent = '環境を削除';
+            }
+        });
+    </script>
+</body>
+</html>
